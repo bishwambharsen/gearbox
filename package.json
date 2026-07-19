@@ -1,0 +1,21 @@
+{
+  "name": "gearbox-proxy",
+  "version": "0.1.0",
+  "description": "An automatic transmission for Claude models — a local proxy that auto-shifts each request to the cheapest capable model tier.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "bin": { "gearbox": "dist/cli.js" },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
