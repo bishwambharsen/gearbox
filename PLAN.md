@@ -46,9 +46,9 @@ Tiered classifier, cheapest signal first. **No LLM calls for classification in P
    - Context length > threshold → force a tier that handles it well.
    - Request has `thinking` enabled or user text contains planning/architecture markers ("design", "architect", "refactor across", "plan") → upshift.
 2. **Heuristic scoring:** user-text length, number of files referenced, presence of error/stack-trace text (debugging → gear 3), diff size mentioned.
-3. **Hysteresis (cache-aware stickiness):** a switch is only allowed when
+3. **Hysteresis (cache-aware stickiness), downshifts only:** a downshift is only allowed when
    `expected_savings(stay→target) > cache_rewarm_cost + switch_margin`.
-   Approximate `cache_rewarm_cost` as `cached_input_tokens × (input_price(target) − cache_read_price(current))`. Prefer switching at natural boundaries: new user turn, post-compaction. Never mid tool-loop upshift unless an escalation trigger fires.
+   Approximate `cache_rewarm_cost` as `cached_input_tokens × (input_price(target) − cache_read_price(current))`. Upshifts are quality-driven — the heuristic/escalation/override that chose them is the need signal — and can never pay for themselves in savings by construction, so the savings gate must not apply to them (heuristic upshifts are capped at `maxTier`). Prefer switching at natural boundaries: new user turn, post-compaction. Never mid tool-loop upshift unless an escalation trigger fires.
 4. **Escalation triggers (safety valve):** N consecutive failed tool calls, repeated identical edits, or explicit user override header → upshift one gear immediately. Quality must never silently degrade.
 5. **Overrides:** magic strings in user text (`!gear=fable`, `!gear=haiku`) and config-pinned tiers per session.
 
