@@ -28,7 +28,7 @@ describe('loadConfig defaults', () => {
     expect(config.maxTier).toBe('fable');
     expect(config.baselineModel).toBe('claude-opus-4-8');
     expect(config.tiers.haiku).toEqual({
-      modelId: 'claude-haiku-4-5',
+      modelId: 'claude-haiku-4-5-20251001',
       inputPrice: 1,
       outputPrice: 5,
       cacheReadMultiplier: 0.1,

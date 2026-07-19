@@ -49,16 +49,6 @@ export function isToolLoopContinuation(body: MessagesRequestBody): boolean {
   return !hasNewText;
 }
 
-/** `thinking` counts as enabled unless it is explicitly `{ type: 'disabled' }`. */
-export function isThinkingEnabled(body: MessagesRequestBody): boolean {
-  const t = body.thinking;
-  if (!t) return false;
-  if (typeof t === 'object' && t !== null && 'type' in (t as Record<string, unknown>)) {
-    return (t as { type?: unknown }).type !== 'disabled';
-  }
-  return Boolean(t);
-}
-
 /** Parse an explicit `!gear=<tier>` override; only valid tier names are honored. */
 export function parseGearOverride(text: string): ModelTier | null {
   const m = text.match(/!gear=([a-z]+)/i);

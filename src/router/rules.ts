@@ -36,21 +36,18 @@ function isShortHousekeeping(text: string): boolean {
 }
 
 /**
- * Classify a fresh user turn. Order matters: planning/thinking wins over
- * debugging, which wins over housekeeping, which wins over the default gear.
+ * Classify a fresh user turn. Order matters: planning wins over debugging,
+ * which wins over housekeeping, which wins over the default gear. A request's
+ * `thinking` flag is deliberately NOT a signal: Claude Code enables thinking
+ * on nearly every request, so it carries no information about task complexity
+ * (validated empirically — it routed whole sessions to the top gear).
  */
-export function classifyFreshTurn(
-  text: string,
-  thinkingEnabled: boolean,
-  config: GearboxConfig,
-): Heuristic {
-  if (thinkingEnabled || PLANNING_RE.test(text)) {
+export function classifyFreshTurn(text: string, config: GearboxConfig): Heuristic {
+  if (PLANNING_RE.test(text)) {
     return {
       tier: capTier('fable', config.maxTier),
       name: 'planning',
-      reason: thinkingEnabled
-        ? 'thinking enabled → hardest reasoning gear'
-        : 'planning/architecture markers → hardest reasoning gear',
+      reason: 'planning/architecture markers → hardest reasoning gear',
     };
   }
   if (DEBUGGING_RE.test(text)) {

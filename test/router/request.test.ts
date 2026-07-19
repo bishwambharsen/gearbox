@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isThinkingEnabled,
-  isToolLoopContinuation,
-  latestUserText,
-  parseGearOverride,
-} from '../../src/router/request.js';
+import { isToolLoopContinuation, latestUserText, parseGearOverride } from '../../src/router/request.js';
 import { toolLoopTurn, userTurn } from './fixtures.js';
 
 describe('latestUserText', () => {
@@ -47,18 +42,6 @@ describe('isToolLoopContinuation', () => {
 
   it('is false for a plain user turn', () => {
     expect(isToolLoopContinuation(userTurn('hello'))).toBe(false);
-  });
-});
-
-describe('isThinkingEnabled', () => {
-  it('is true for an enabled thinking config', () => {
-    expect(isThinkingEnabled({ model: 'm', messages: [], thinking: { type: 'enabled', budget_tokens: 1000 } })).toBe(true);
-  });
-  it('is false for an explicitly disabled thinking config', () => {
-    expect(isThinkingEnabled({ model: 'm', messages: [], thinking: { type: 'disabled' } })).toBe(false);
-  });
-  it('is false when thinking is absent', () => {
-    expect(isThinkingEnabled({ model: 'm', messages: [] })).toBe(false);
   });
 });
 

@@ -12,48 +12,44 @@ const config = makeConfig();
 
 describe('classifyFreshTurn', () => {
   it('routes planning/architecture markers to fable', () => {
-    const h = classifyFreshTurn('help me design the architecture', false, config);
+    const h = classifyFreshTurn('help me design the architecture', config);
     expect(h.tier).toBe('fable');
     expect(h.name).toBe('planning');
   });
 
   it('routes "refactor across" phrase to fable', () => {
-    expect(classifyFreshTurn('we need to refactor across modules', false, config).tier).toBe('fable');
-  });
-
-  it('routes thinking-enabled requests to fable regardless of text', () => {
-    expect(classifyFreshTurn('add a field', true, config).name).toBe('planning');
+    expect(classifyFreshTurn('we need to refactor across modules', config).tier).toBe('fable');
   });
 
   it('caps the planning gear at maxTier', () => {
     const capped = makeConfig({ maxTier: 'opus' });
-    expect(classifyFreshTurn('design this', false, capped).tier).toBe('opus');
+    expect(classifyFreshTurn('design this', capped).tier).toBe('opus');
   });
 
   it('routes debugging language to opus', () => {
-    const h = classifyFreshTurn('fix the failing test and stack trace', false, config);
+    const h = classifyFreshTurn('fix the failing test and stack trace', config);
     expect(h.tier).toBe('opus');
     expect(h.name).toBe('debugging');
   });
 
   it('does not misfire planning on unrelated words', () => {
     // Word-boundary matching: "explain"/"explanation" must not trip the "plan" marker.
-    expect(classifyFreshTurn('explain this function', false, config).name).not.toBe('planning');
-    expect(classifyFreshTurn('add an explanation comment', false, config).name).not.toBe('planning');
+    expect(classifyFreshTurn('explain this function', config).name).not.toBe('planning');
+    expect(classifyFreshTurn('add an explanation comment', config).name).not.toBe('planning');
   });
 
   it('routes short imperative housekeeping to haiku', () => {
-    expect(classifyFreshTurn('run the tests', false, config).tier).toBe('haiku');
-    expect(classifyFreshTurn('commit these changes', false, config).name).toBe('housekeeping');
+    expect(classifyFreshTurn('run the tests', config).tier).toBe('haiku');
+    expect(classifyFreshTurn('commit these changes', config).name).toBe('housekeeping');
   });
 
   it('does not treat a long message starting with a verb as housekeeping', () => {
     const long = 'show me how you would completely reorganize the persistence layer and its callers here';
-    expect(classifyFreshTurn(long, false, config).name).not.toBe('housekeeping');
+    expect(classifyFreshTurn(long, config).name).not.toBe('housekeeping');
   });
 
   it('falls back to the default tier when no signal is present', () => {
-    const h = classifyFreshTurn('add a small helper function', false, config);
+    const h = classifyFreshTurn('add a small helper function', config);
     expect(h.tier).toBe('sonnet');
     expect(h.name).toBe('default');
   });

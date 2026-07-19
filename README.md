@@ -34,6 +34,8 @@ ANTHROPIC_BASE_URL=http://localhost:8484 claude
 npx gearbox report   # tokens & $ saved this session
 ```
 
+Gearbox works with zero configuration. To change ports, model IDs, pricing, routing thresholds, or the savings baseline, see [docs/config.md](docs/config.md).
+
 ## Status
 
 Early development. Phase 1 targets Claude models only; local/free model support is planned once the ledger proves real savings. See [PLAN.md](PLAN.md) for the full architecture and roadmap.

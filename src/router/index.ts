@@ -1,12 +1,7 @@
 // Workstream 2 — the routing policy. Pure decision logic keyed by session id;
 // no I/O, timers, or network. See PLAN.md "Routing policy".
 import type { GearboxConfig, ModelTier, RequestContext, RouteDecision, Router } from '../types.js';
-import {
-  isThinkingEnabled,
-  isToolLoopContinuation,
-  latestUserText,
-  parseGearOverride,
-} from './request.js';
+import { isToolLoopContinuation, latestUserText, parseGearOverride } from './request.js';
 import { capTier, classifyFreshTurn, hysteresisAllowsSwitch, tierIndex, upshiftCapped } from './rules.js';
 import { SessionStore } from './session.js';
 
@@ -60,7 +55,7 @@ export function createRouter(config: GearboxConfig): Router {
         rule = 'tool-loop-downshift';
         reason = 'mechanical tool_result continuation → cheapest gear';
       } else {
-        const h = classifyFreshTurn(text, isThinkingEnabled(ctx.body), config);
+        const h = classifyFreshTurn(text, config);
         // Cap here, not just in the classifier, so every heuristic (e.g.
         // debugging → opus) respects maxTier now that upshifts actually fire.
         candidate = capTier(h.tier, config.maxTier);
