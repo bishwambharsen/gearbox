@@ -233,6 +233,136 @@ describe('createProxy', () => {
     expect(router.success.length).toBe(1); // the retry
   });
 
+  it('strips only context-1m* tokens from anthropic-beta when the model is rewritten', async () => {
+    const upstream = await startUpstream((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: 'msg_1', usage: { input_tokens: 10, output_tokens: 5 } }));
+    });
+    const ledger = recordingLedger();
+    const port = await boot(upstream, fixedRouter(decisionSonnet), ledger);
+
+    await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'anthropic-beta': 'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+      },
+      body: JSON.stringify({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+
+    expect(upstream.requests[0].headers['anthropic-beta']).toBe('interleaved-thinking-2025-05-14');
+  });
+
+  it('drops the anthropic-beta header entirely when context-1m was its only token', async () => {
+    const upstream = await startUpstream((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: 'msg_1', usage: { input_tokens: 10, output_tokens: 5 } }));
+    });
+    const ledger = recordingLedger();
+    const port = await boot(upstream, fixedRouter(decisionSonnet), ledger);
+
+    await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'anthropic-beta': 'context-1m-2025-08-07',
+      },
+      body: JSON.stringify({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+
+    expect(upstream.requests[0].headers['anthropic-beta']).toBe(undefined);
+  });
+
+  it('forwards anthropic-beta untouched when the model is not rewritten', async () => {
+    const upstream = await startUpstream((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: 'msg_1', usage: { input_tokens: 10, output_tokens: 5 } }));
+    });
+    const ledger = recordingLedger();
+    // Router returns the same model the client sent — no rewrite.
+    const noRewriteDecision: RouteDecision = {
+      tier: 'opus',
+      model: 'claude-opus-4-8',
+      switched: false,
+      rule: 'test',
+      reason: 'test',
+    };
+    const port = await boot(upstream, fixedRouter(noRewriteDecision), ledger);
+
+    await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'anthropic-beta': 'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+      },
+      body: JSON.stringify({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+
+    expect(upstream.requests[0].headers['anthropic-beta']).toBe(
+      'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+    );
+  });
+
+  it('sends the original, unstripped anthropic-beta header on fallback retry', async () => {
+    const upstream = await startUpstream((_req, res, body, hit) => {
+      const model = JSON.parse(body).model;
+      if (hit === 1) {
+        expect(model).toBe('claude-sonnet-5'); // rewritten attempt
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ type: 'error', error: { message: 'model not found' } }));
+      } else {
+        expect(model).toBe('claude-opus-4-8'); // original on retry
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ id: 'msg_2', usage: { input_tokens: 7, output_tokens: 3 } }));
+      }
+    });
+    const ledger = recordingLedger();
+    const router = fixedRouter(decisionSonnet);
+    const port = await boot(upstream, router, ledger);
+
+    await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'anthropic-beta': 'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+      },
+      body: JSON.stringify({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+
+    expect(upstream.requests).toHaveLength(2);
+    // Rewritten attempt: stripped.
+    expect(upstream.requests[0].headers['anthropic-beta']).toBe('interleaved-thinking-2025-05-14');
+    // Fallback retry with original model: untouched, original header.
+    expect(upstream.requests[1].headers['anthropic-beta']).toBe(
+      'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+    );
+  });
+
+  it('passes a 429 on a rewritten model through unchanged, without falling back', async () => {
+    const upstream = await startUpstream((_req, res) => {
+      res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '30' });
+      res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'rate limited' } }));
+    });
+    const ledger = recordingLedger();
+    const router = fixedRouter(decisionSonnet);
+    const port = await boot(upstream, router, ledger);
+
+    const res = await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }] }),
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('30');
+    expect(json.error.type).toBe('rate_limit_error');
+    expect(upstream.requests).toHaveLength(1); // no fallback retry
+    expect(router.failure.length).toBe(1);
+    expect(router.success.length).toBe(0);
+    expect(ledger.entries).toHaveLength(0);
+  });
+
   it('passes through non-/v1/messages requests without body inspection', async () => {
     const upstream = await startUpstream((req, res) => {
       res.writeHead(200, { 'content-type': 'application/json', 'x-echo-path': req.url! });
