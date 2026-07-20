@@ -1,0 +1,9 @@
+{
+  "name": "gearbox",
+  "description": "Task-level model routing: decompose work, delegate right-sized subtasks to cheaper Claude subagents (haiku/sonnet/opus), keep hard reasoning at session level, and report the quota savings.",
+  "author": {
+    "name": "Bishwambhar Sen",
+    "email": "bishwambhar.sen@gmail.com"
+  },
+  "license": "MIT"
+}

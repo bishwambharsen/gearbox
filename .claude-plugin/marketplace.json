@@ -1,0 +1,21 @@
+{
+  "name": "gearbox",
+  "owner": {
+    "name": "Bishwambhar Sen",
+    "email": "bishwambhar.sen@gmail.com"
+  },
+  "description": "Gearbox — an automatic transmission for Claude models",
+  "plugins": [
+    {
+      "name": "gearbox",
+      "source": "./",
+      "description": "Task-level model routing: decompose work, delegate right-sized subtasks to cheaper Claude subagents (haiku/sonnet/opus), keep hard reasoning at session level, and report the quota savings. Works in local and cloud Claude Code sessions.",
+      "author": {
+        "name": "Bishwambhar Sen"
+      },
+      "homepage": "https://github.com/bishwambharsen/gearbox",
+      "repository": "https://github.com/bishwambharsen/gearbox",
+      "license": "MIT"
+    }
+  ]
+}

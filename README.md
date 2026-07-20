@@ -47,6 +47,17 @@ Fair question — model routing is a crowded category. LiteLLM, OpenRouter, Port
 
 And an honest concession: if you need multi-provider routing for an app you're building, use LiteLLM — that's its job. Gearbox is not a gateway; it's a **quota optimizer for agentic Claude sessions**, and it deliberately starts single-provider because that's where the unsolved problems (per-model caches, OAuth passthrough, agent-loop signals) live.
 
+## The `/gearbox` skill — routing without the proxy
+
+The proxy covers local sessions. The **skill** covers everywhere else — cloud sessions at claude.ai/code, web, mobile — by routing at the *task* level: the session model orchestrates and delegates right-sized subtasks to cheaper Claude subagents, then prints a shift ledger of which gear did what. Install it from any Claude Code session (this repo is its own plugin marketplace):
+
+```
+/plugin marketplace add bishwambharsen/gearbox
+/plugin install gearbox@gearbox
+```
+
+See [docs/skill.md](docs/skill.md) for details.
+
 ## Status
 
 Early development. Phase 1 targets Claude models only; local/free model support is planned once the ledger proves real savings. See [PLAN.md](PLAN.md) for the full architecture and roadmap.
