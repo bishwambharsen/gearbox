@@ -83,6 +83,8 @@ export interface UsageBlock {
 export interface LedgerEntry {
   timestamp: string;
   sessionId: string;
+  /** Model the client originally requested — the true per-request counterfactual */
+  originalModel: string;
   decision: RouteDecision;
   usage: UsageBlock;
   actualCostUsd: number;
@@ -90,7 +92,7 @@ export interface LedgerEntry {
 }
 
 export interface Ledger {
-  record(sessionId: string, decision: RouteDecision, usage: UsageBlock): void;
+  record(sessionId: string, decision: RouteDecision, usage: UsageBlock, originalModel: string): void;
 }
 
 export interface GearboxServer {

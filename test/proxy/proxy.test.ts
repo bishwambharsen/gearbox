@@ -93,12 +93,14 @@ function fixedRouter(decision: RouteDecision): Router & { success: string[]; fai
   };
 }
 
-function recordingLedger(): Ledger & { entries: Array<{ sessionId: string; decision: RouteDecision; usage: UsageBlock }> } {
-  const entries: Array<{ sessionId: string; decision: RouteDecision; usage: UsageBlock }> = [];
+function recordingLedger(): Ledger & {
+  entries: Array<{ sessionId: string; decision: RouteDecision; usage: UsageBlock; originalModel: string }>;
+} {
+  const entries: Array<{ sessionId: string; decision: RouteDecision; usage: UsageBlock; originalModel: string }> = [];
   return {
     entries,
-    record(sessionId, decision, usage) {
-      entries.push({ sessionId, decision, usage });
+    record(sessionId, decision, usage, originalModel) {
+      entries.push({ sessionId, decision, usage, originalModel });
     },
   };
 }
@@ -161,6 +163,8 @@ describe('createProxy', () => {
     expect(JSON.parse(seen.body).model).toBe('claude-sonnet-5'); // rewritten
     expect(ledger.entries).toHaveLength(1);
     expect(ledger.entries[0].usage).toEqual({ input_tokens: 10, output_tokens: 5 });
+    // The proxy passes the client's ORIGINAL model as the per-request counterfactual.
+    expect(ledger.entries[0].originalModel).toBe('claude-opus-4-8');
   });
 
   it('streams SSE through intact and extracts usage from message_start + message_delta', async () => {
@@ -197,6 +201,7 @@ describe('createProxy', () => {
       output_tokens: 99, // from message_delta, overriding the 1 in message_start
       cache_read_input_tokens: 8,
     });
+    expect(ledger.entries[0].originalModel).toBe('claude-opus-4-8'); // SSE path threads original model too
   });
 
   it('falls back to the original model on a 4xx after rewrite', async () => {
@@ -229,6 +234,7 @@ describe('createProxy', () => {
     expect(ledger.entries).toHaveLength(1);
     expect(ledger.entries[0].decision.rule).toBe('proxy-fallback');
     expect(ledger.entries[0].decision.model).toBe('claude-opus-4-8');
+    expect(ledger.entries[0].originalModel).toBe('claude-opus-4-8');
     expect(router.failure.length).toBe(1); // the 4xx
     expect(router.success.length).toBe(1); // the retry
   });

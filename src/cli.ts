@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 import { loadConfig } from './config/index.js';
 import { readLedger } from './ledger/index.js';
-import { aggregate, filterBySession } from './ledger/report.js';
+import { aggregate, filterBySession, selectLastSession } from './ledger/report.js';
 
 function printUsage(): void {
   console.log(`gearbox — an automatic transmission for Claude models
 
 Usage:
-  gearbox start                  Start the proxy server
-  gearbox report [--session id]  Print the cost/savings ledger report
-  gearbox config                 Print the effective config as JSON
+  gearbox start                          Start the proxy server
+  gearbox report [--session id] [--last] Print the cost/savings ledger report
+  gearbox config                         Print the effective config as JSON
+  gearbox service install|status|uninstall
+                                         Manage the macOS background service
 `);
 }
 
@@ -44,9 +46,11 @@ function formatTable(rows: string[][]): string {
 function reportCommand(args: string[]): void {
   const sessionFlagIdx = args.indexOf('--session');
   const sessionId = sessionFlagIdx !== -1 ? args[sessionFlagIdx + 1] : undefined;
+  const last = args.includes('--last');
 
   const config = loadConfig(process.env.GEARBOX_CONFIG);
-  const entries = filterBySession(readLedger(config.ledgerPath), sessionId);
+  let entries = filterBySession(readLedger(config.ledgerPath), sessionId);
+  if (last) entries = selectLastSession(entries);
 
   if (entries.length === 0) {
     console.log(
@@ -67,7 +71,12 @@ function reportCommand(args: string[]): void {
     r.actualCostUsd.toFixed(4),
   ]);
 
-  console.log(sessionId ? `Gearbox report — session "${sessionId}"` : 'Gearbox report — all sessions');
+  const scope = last
+    ? `session "${summary.sessions[summary.sessions.length - 1]!.sessionId}" (most recent)`
+    : sessionId
+      ? `session "${sessionId}"`
+      : 'all sessions';
+  console.log(`Gearbox report — ${scope}`);
   console.log('');
   console.log(formatTable([header, ...body]));
   console.log('');
@@ -76,6 +85,42 @@ function reportCommand(args: string[]): void {
   console.log(
     `Savings:        $${summary.savingsUsd.toFixed(4)} (${summary.savingsPct === null ? 'n/a' : summary.savingsPct.toFixed(1) + '%'})`,
   );
+  if (summary.fallbackRequests > 0) {
+    console.log(
+      `Fallbacks:      ${summary.fallbackRequests} request${summary.fallbackRequests === 1 ? '' : 's'} bounced to the original model`,
+    );
+  }
+}
+
+async function serviceCommand(args: string[]): Promise<void> {
+  const { installService, uninstallService, serviceStatus, servicePaths } = await import('./service/index.js');
+  const paths = servicePaths();
+
+  switch (args[0]) {
+    case 'install':
+      installService();
+      console.log(`gearbox: service installed and loaded (${paths.plistPath})`);
+      console.log(`gearbox: logs in ${paths.logDir}`);
+      break;
+    case 'uninstall':
+      uninstallService();
+      console.log('gearbox: service unloaded and removed');
+      break;
+    case 'status': {
+      const s = serviceStatus();
+      console.log(
+        !s.installed
+          ? 'gearbox: service not installed (run: gearbox service install)'
+          : s.running
+            ? `gearbox: service running (pid ${s.pid})`
+            : 'gearbox: service loaded but not running — check logs in ' + paths.logDir,
+      );
+      break;
+    }
+    default:
+      printUsage();
+      break;
+  }
 }
 
 async function main(): Promise<void> {
@@ -90,6 +135,9 @@ async function main(): Promise<void> {
       break;
     case 'config':
       configCommand();
+      break;
+    case 'service':
+      await serviceCommand(args);
       break;
     default:
       printUsage();

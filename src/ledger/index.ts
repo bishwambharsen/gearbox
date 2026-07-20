@@ -16,10 +16,11 @@ function costUsd(usage: UsageBlock, tier: TierConfig): number {
   return micros / 1e6;
 }
 
-/** Tier to price the counterfactual baseline against: the tier matching `baselineModel`'s
- * modelId, or — if no tier matches — the most expensive tier (by outputPrice, tie-broken
- * by inputPrice), so the baseline never silently understates cost. */
-function baselineTier(config: GearboxConfig): TierConfig {
+/** Fallback tier to price the counterfactual baseline against when the request's original
+ * model matches no configured tier: the tier matching `baselineModel`'s modelId, or — if
+ * that matches nothing either — the most expensive tier (by outputPrice, tie-broken by
+ * inputPrice), so the baseline never silently understates cost. */
+function fallbackBaselineTier(config: GearboxConfig): TierConfig {
   const tiers = Object.values(config.tiers);
   const match = tiers.find((t) => t.modelId === config.baselineModel);
   if (match) return match;
@@ -31,14 +32,18 @@ function baselineTier(config: GearboxConfig): TierConfig {
 }
 
 export function createLedger(config: GearboxConfig): Ledger {
-  const baseline = baselineTier(config);
+  const fallbackBaseline = fallbackBaselineTier(config);
 
   return {
-    record(sessionId: string, decision: RouteDecision, usage: UsageBlock) {
+    record(sessionId: string, decision: RouteDecision, usage: UsageBlock, originalModel: string) {
       const tier = config.tiers[decision.tier];
+      // The true per-request counterfactual is the model the client originally requested.
+      const baseline =
+        Object.values(config.tiers).find((t) => t.modelId === originalModel) ?? fallbackBaseline;
       const entry: LedgerEntry = {
         timestamp: new Date().toISOString(),
         sessionId,
+        originalModel,
         decision,
         usage,
         actualCostUsd: costUsd(usage, tier),
